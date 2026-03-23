@@ -964,7 +964,7 @@ def handle_symbol(pair):
             if deep is None:
                 logger.info(f"{symbol} | BUY ignored: no deepest touch recorded")
                 return
-            real_sl = deep * (1 - SL_BUFFER)
+            real_sl = deep
             
             risk_sl = real_sl * (1 - SL_BUFFER)
             
@@ -1098,7 +1098,7 @@ def handle_symbol(pair):
                 logger.info(f"{symbol} | SELL ignored: no deepest touch recorded")
                 return
                 
-            real_sl = deep * (1 + SL_BUFFER)
+            real_sl = deep
                 
             risk_sl = real_sl * (1 + SL_BUFFER)
             
