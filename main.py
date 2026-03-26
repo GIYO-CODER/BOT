@@ -453,7 +453,7 @@ def place_conditional_order(symbol, side, entry, sl, tp, qty, position_idx):
             qty=str(qty),
             timeInForce="GTC",
             triggerPrice=str(entry),
-            triggerDirection=triggerDirection
+            triggerDirection=triggerDirection,
             positionIdx=position_idx
         )
 
