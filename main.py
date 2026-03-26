@@ -941,7 +941,7 @@ def handle_symbol(pair):
         if not position_exists(symbol, "Buy"):
             logger.info(f"{symbol} | BUY FVG registered as active watcher (no active buy trade).")
 
-    if bear_fvg and daily_fvg_state[symbol]["allow_sell"]::
+    if bear_fvg and daily_fvg_state[symbol]["allow_sell"]:
         new_high = prev2["low"]
         new_low = prev1["high"]
         mid = new_high - (new_high - new_low) * 0.5
