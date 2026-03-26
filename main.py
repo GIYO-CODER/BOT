@@ -892,7 +892,7 @@ def handle_symbol(pair):
     # -----------------------
     # BUY FVG
     # -----------------------
-    if bull_fvg and daily_fvg_state[symbol]["allow_buy"]::
+    if bull_fvg and daily_fvg_state[symbol]["allow_buy"]:
         new_low = prev2["high"]
         new_high = prev1["low"]
         mid = new_low + (new_high - new_low) * 0.5
