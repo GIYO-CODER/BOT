@@ -439,6 +439,11 @@ def get_real_balance():
 
 def place_conditional_order(symbol, side, entry, sl, tp, qty, position_idx):
     try:
+        current_price = last_closed["close"]
+        if side == "BUY":
+            triggerDirection = 2 if entry < current_price else 1
+        else:  # SELL
+            triggerDirection = 1 if entry > current_price else 2
         session.place_order(
             category=CATEGORY,
             symbol=symbol,
@@ -448,7 +453,7 @@ def place_conditional_order(symbol, side, entry, sl, tp, qty, position_idx):
             qty=str(qty),
             timeInForce="GTC",
             triggerPrice=str(entry),
-            triggerDirection=1 if side == "Buy" else 2,
+            triggerDirection=triggerDirection
             positionIdx=position_idx
         )
 
