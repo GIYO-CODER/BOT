@@ -437,37 +437,6 @@ def get_real_balance():
         logger.error(f"Error fetching balance: {e}")
     return 0.0
 
-def place_conditional_order(symbol, side, entry, sl, tp, qty, position_idx,current_price):
-    try:
-        if side == "Buy":
-            if entry > current_price:
-                triggerDirection = 1  # Rising
-            else:
-                triggerDirection = 2  # Falling
-        else:  # Sell
-            if entry < current_price:
-                triggerDirection = 2  # Falling
-            else:
-                triggerDirection = 1  # Rising
-
-        session.place_order(
-            category=CATEGORY,
-            symbol=symbol,
-            side=side,
-            orderType="Limit",
-            price=str(entry),
-            qty=str(qty),
-            timeInForce="GTC",
-            triggerPrice=str(entry),
-            triggerDirection=triggerDirection,
-            positionIdx=position_idx
-        )
-
-        logger.info(f"{symbol} | CONDITIONAL {side} placed at {entry}")
-
-    except Exception as e:
-        logger.error(f"{symbol} | Conditional order error: {e}")
-
 def calculate_signal_score(entry, fvg_low, fvg_high):
 
     fvg_size = abs(fvg_high - fvg_low)
@@ -480,24 +449,6 @@ def calculate_signal_score(entry, fvg_low, fvg_high):
 
     return score
 
-def cancel_existing_orders(symbol, side):
-    try:
-        orders = session.get_open_orders(
-            category=CATEGORY,
-            symbol=symbol
-        )
-
-        for o in orders["result"]["list"]:
-            if o["side"] == side:
-                session.cancel_order(
-                    category=CATEGORY,
-                    symbol=symbol,
-                    orderId=o["orderId"]
-                )
-                logger.info(f"{symbol} | Cancelled old {side} order")
-
-    except Exception as e:
-        logger.error(f"{symbol} | Cancel order error: {e}")
 
 def position_exists(symbol, side):
 
@@ -899,12 +850,11 @@ def handle_symbol(pair):
     # -----------------------
     # BUY FVG
     # -----------------------
-    if bull_fvg and daily_fvg_state[symbol]["allow_buy"]:
+    if bull_fvg:
         new_low = prev2["high"]
         new_high = prev1["low"]
         mid = new_low + (new_high - new_low) * 0.5
         created_at = prev1["time"]
-        
         state["buy_fvg"] = {
             "low": new_low,
             "high": new_high,
@@ -912,48 +862,20 @@ def handle_symbol(pair):
             "tapped": False,
             "deepest_touch": None,
             "created_at": created_at}
-        if not position_exists(symbol,"Buy"):
-            cancel_existing_orders(symbol, "Buy")
-        
-        entry = mid
-        real_sl = new_low
-        risk_sl = real_sl * (1 - SL_BUFFER)
-        
-        risk_amount = weekly_rf
-        raw_qty = risk_amount / abs(entry - risk_sl)
-        
-        qty = round_qty(symbol, raw_qty)
-        qty = fit_qty_to_margin(symbol, entry, leverage, qty)
-        
-        if qty is None:
-            return
-            
-        if not trade_value_ok(entry, qty):
-            return
-            
-        tp = entry + (entry - risk_sl) * RR + (entry * TP_BUFFER)
-        
-        place_conditional_order(
-            symbol,
-            "Buy",
-            entry,
-            real_sl,
-            tp,
-            qty,
-            1,
-            last_closed["close"])
         logger.info(f"{symbol} | New BUY FVG detected: low={new_low} high={new_high}")
 
         state["buy_fvg_candle_time"] = prev1["time"]
         if not position_exists(symbol, "Buy"):
             logger.info(f"{symbol} | BUY FVG registered as active watcher (no active buy trade).")
 
-    if bear_fvg and daily_fvg_state[symbol]["allow_sell"]:
+    # -----------------------
+    # SELL FVG
+    # -----------------------
+    if bear_fvg:
         new_high = prev2["low"]
         new_low = prev1["high"]
         mid = new_high - (new_high - new_low) * 0.5
         created_at = prev1["time"]
-        
         state["sell_fvg"] = {
             "high": new_high,
             "low": new_low,
@@ -961,36 +883,6 @@ def handle_symbol(pair):
             "tapped": False,
             "deepest_touch": None,
             "created_at": created_at}
-        if not position_exists(symbol, "Sell"):
-            cancel_existing_orders(symbol, "Sell")
-        
-        entry = mid
-        real_sl = new_high
-        risk_sl = real_sl * (1 + SL_BUFFER)
-        
-        risk_amount = weekly_rf
-        raw_qty = risk_amount / abs(entry - risk_sl)
-        
-        qty = round_qty(symbol, raw_qty)
-        qty = fit_qty_to_margin(symbol, entry, leverage, qty)
-        
-        if qty is None:
-            return
-            
-        if not trade_value_ok(entry, qty):
-            return
-            
-        tp = entry - (risk_sl - entry) * RR - (entry * TP_BUFFER)
-        
-        place_conditional_order(
-            symbol,
-            "Sell",
-            entry,
-            real_sl,
-            tp,
-            qty,
-            2,
-            last_closed["close"])
         logger.info(f"{symbol} | New SELL FVG detected: high={new_high} low={new_low}")
 
         state["sell_fvg_candle_time"] = prev1["time"]
@@ -1006,13 +898,27 @@ def handle_symbol(pair):
             if last_closed["low"] <= bf["high"] and last_closed["high"] >= bf["low"]:
                 bf["tapped"] = True
                 logger.info(f"{symbol} | BUY FVG TAPPED (candle touched the FVG range).")
-    
+    if state["buy_fvg"] and state["buy_fvg"]["tapped"]:
+        bf = state["buy_fvg"]
+        if bf["low"] <= last_closed["low"] <= bf["high"]:
+            if bf["deepest_touch"] is None:
+                bf["deepest_touch"] = last_closed["low"]
+            else:
+                bf["deepest_touch"] = min(bf["deepest_touch"], last_closed["low"])
+
     if state["sell_fvg"] and not state["sell_fvg"]["tapped"]:
         sf = state["sell_fvg"]
         if last_closed["time"] != state["sell_fvg_candle_time"]:
             if last_closed["low"] <= sf["high"] and last_closed["high"] >= sf["low"]:
                 sf["tapped"] = True
                 logger.info(f"{symbol} | SELL FVG TAPPED (candle touched the FVG range).")
+    if state["sell_fvg"] and state["sell_fvg"]["tapped"]:
+        sf = state["sell_fvg"]
+        if sf["low"] <= last_closed["high"] <= sf["high"]:
+            if sf["deepest_touch"] is None:
+                sf["deepest_touch"] = last_closed["high"]
+            else:
+                sf["deepest_touch"] = max(sf["deepest_touch"], last_closed["high"])
 
     # -----------------------
     # FVG INVALIDATION
@@ -1353,7 +1259,7 @@ def place_real_trade(symbol, side, entry, sl, tp, leverage, frozen_risk, qty):
             category=CATEGORY,
             symbol=symbol,
             side=order_side,
-            orderType="Limit",
+            orderType="Market",
             qty=str(qty),
             timeInForce="IOC",
             positionIdx=position_idx
