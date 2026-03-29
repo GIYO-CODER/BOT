@@ -1002,7 +1002,8 @@ def handle_symbol(pair):
             real_sl = min(
                 bf["low"],            # FVG low
                 prev2["low"],         # structure candle
-                bf["deepest_touch"]   # safety fallback)
+                bf["deepest_touch"]   # safety fallback
+            )
             
             risk_sl = real_sl * (1 - SL_BUFFER)
             
