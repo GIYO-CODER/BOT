@@ -188,7 +188,7 @@ def fetch_daily_klines(symbol, retries=3, base_delay=1):
                 category="linear",
                 symbol=symbol,
                 interval="D",
-                limit=6
+                limit=7
             )
 
             raw = resp["result"]["list"]
