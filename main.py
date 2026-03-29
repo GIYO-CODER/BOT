@@ -895,6 +895,10 @@ def handle_symbol(pair):
         state["buy_fvg_candle_time"] = prev1["time"]
         if not position_exists(symbol, "Buy"):
             logger.info(f"{symbol} | BUY FVG registered as active watcher (no active buy trade).")
+        fvg_size_pct = abs(new_high - new_low) / new_high
+        if fvg_size_pct < 0.003:
+            logger.info(f"{symbol} | FVG too small, skipping")
+            return
 
     # -----------------------
     # SELL FVG
@@ -916,12 +920,10 @@ def handle_symbol(pair):
         state["sell_fvg_candle_time"] = prev1["time"]
         if not position_exists(symbol, "Sell"):
             logger.info(f"{symbol} | SELL FVG registered as active watcher (no active sell trade).")
-
-    fvg_size_pct = abs(new_high - new_low) / new_high
-    
-    if fvg_size_pct < 0.003:
-        logger.info(f"{symbol} | FVG too small, skipping")
-        return
+        fvg_size_pct = abs(new_high - new_low) / new_high
+        if fvg_size_pct < 0.003:
+            logger.info(f"{symbol} | FVG too small, skipping")
+            return
 
     # -----------------------
     # TAP CHECK
