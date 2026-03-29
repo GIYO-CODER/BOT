@@ -437,6 +437,16 @@ def get_real_balance():
         logger.error(f"Error fetching balance: {e}")
     return 0.0
 
+def find_tp_buy(candles, entry):
+    # look for nearest swing high (last 10 candles)
+    highs = [c["high"] for c in candles[-10:]]
+    return max(highs)
+
+def find_tp_sell(candles, entry):
+    # look for nearest swing low (last 10 candles)
+    lows = [c["low"] for c in candles[-10:]]
+    return min(lows)
+
 def calculate_signal_score(entry, fvg_low, fvg_high):
 
     fvg_size = abs(fvg_high - fvg_low)
@@ -844,9 +854,27 @@ def handle_symbol(pair):
     t_last = datetime.utcfromtimestamp(last_closed["time"] / 1000).strftime("%Y-%m-%d %H:%M:%S")
     logger.info(f"{symbol} | Processing closed candle {t_last} | C={last_closed['close']}")
 
-    bull_fvg = prev1["low"] > prev2["high"]
-    bear_fvg = prev1["high"] < prev2["low"]
-
+    body = abs(prev1["close"] - prev1["open"])
+    range_ = prev1["high"] - prev1["low"]
+    
+    if range_ == 0:
+        return
+        
+    body_ratio = body / range_
+    
+    bull_displacement = (
+        prev1["close"] > prev1["open"] and
+        body_ratio > 0.6 and
+        prev1["close"] > prev2["high"])
+    
+    bear_displacement = (
+        prev1["close"] < prev1["open"] and
+        body_ratio > 0.6 and
+        prev1["close"] < prev2["low"])
+    
+    bull_fvg = prev1["low"] > prev2["high"] and bull_displacement
+    bear_fvg = prev1["high"] < prev2["low"] and bear_displacement
+    
     # -----------------------
     # BUY FVG
     # -----------------------
@@ -888,6 +916,12 @@ def handle_symbol(pair):
         state["sell_fvg_candle_time"] = prev1["time"]
         if not position_exists(symbol, "Sell"):
             logger.info(f"{symbol} | SELL FVG registered as active watcher (no active sell trade).")
+
+    fvg_size_pct = abs(new_high - new_low) / new_high
+    
+    if fvg_size_pct < 0.003:
+        logger.info(f"{symbol} | FVG too small, skipping")
+        return
 
     # -----------------------
     # TAP CHECK
@@ -956,7 +990,7 @@ def handle_symbol(pair):
             logger.info(f"{symbol} | Daily bias does not allow BUY, skipping")
             return
             
-        if last_closed["close"] > bf["high"]:
+        if last_closed["high"] > prev1["high"]:
             entry = last_closed["close"]
             
             deep = bf["deepest_touch"]
@@ -964,7 +998,11 @@ def handle_symbol(pair):
             if deep is None:
                 logger.info(f"{symbol} | BUY ignored: no deepest touch recorded")
                 return
-            real_sl = deep
+                
+            real_sl = min(
+                bf["low"],            # FVG low
+                prev2["low"],         # structure candle
+                bf["deepest_touch"]   # safety fallback)
             
             risk_sl = real_sl * (1 - SL_BUFFER)
             
@@ -993,7 +1031,15 @@ def handle_symbol(pair):
             state["buy_fvg"] = None
             sl_pct = (entry - risk_sl) / entry
             if sl_pct >= MIN_SL_PCT:
-                tp = entry + (entry - risk_sl) * RR + (entry * TP_BUFFER)
+                rr_tp = entry + (entry - risk_sl) * RR
+                liq_tp = find_tp_buy(candles, entry)
+                
+                tp = min(rr_tp, liq_tp)
+
+                if abs(tp - entry) < 2 * abs(entry - sl):
+                    logger.info(f"{symbol} | BUY skipped: RR too low after liquidity TP")
+                    return  # skip weak trade
+                
                 logger.info(f"{symbol} | BUY CONFIRMED | entry={entry} sl={sl} tp={tp}")
                 if USE_REAL_TRADING and position_exists(symbol, "Sell"):
                     try:
@@ -1089,7 +1135,7 @@ def handle_symbol(pair):
             logger.info(f"{symbol} | Daily bias does not allow SELL, skipping")
             return
             
-        if last_closed["close"] < sf["low"]:
+        if last_closed["low"] < prev1["low"]:
             entry = last_closed["close"]
             
             deep = sf["deepest_touch"]
@@ -1098,7 +1144,10 @@ def handle_symbol(pair):
                 logger.info(f"{symbol} | SELL ignored: no deepest touch recorded")
                 return
                 
-            real_sl = deep
+            real_sl = max(
+                sf["low"],            # FVG low
+                prev2["low"],         # structure candle
+                sf["deepest_touch"]   # safety fallback)
                 
             risk_sl = real_sl * (1 + SL_BUFFER)
             
@@ -1127,7 +1176,14 @@ def handle_symbol(pair):
             state["sell_fvg"] = None
             sl_pct = (risk_sl - entry) / entry
             if sl_pct >= MIN_SL_PCT:
-                tp = entry - (risk_sl - entry) * RR - (entry * TP_BUFFER)
+                rr_tp = entry - (risk_sl - entry) * RR
+                liq_tp = find_tp_sell(candles, entry)
+                
+                tp = max(rr_tp, liq_tp)
+                if abs(tp - entry) < 2 * abs(entry - sl):
+                    logger.info(f"{symbol} | SELL skipped: RR too low after liquidity TP")
+                    return  # skip weak trade
+            
                 logger.info(f"{symbol} | SELL CONFIRMED | entry={entry} sl={sl} tp={tp}")
                 if USE_REAL_TRADING and position_exists(symbol, "Buy"):
                     try:
