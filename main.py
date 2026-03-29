@@ -639,10 +639,10 @@ def run_daily_fvg_scan(symbol, today):
     if len(df) < 4:
         return
 
-    c1 = df.iloc[-6]
-    c3 = df.iloc[-4]
-    c2 = df.iloc[-7]
-    c4 = df.iloc[-5]
+    c1 = df.iloc[-5]
+    c3 = df.iloc[-3]
+    c2 = df.iloc[-6]
+    c4 = df.iloc[-4]
 
     sell_fvg_exists = c1["low"] > c3["high"]
     buy_fvg_exists = c1["high"] < c3["low"]
