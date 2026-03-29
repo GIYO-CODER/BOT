@@ -1148,7 +1148,8 @@ def handle_symbol(pair):
             real_sl = max(
                 sf["low"],            # FVG low
                 prev2["low"],         # structure candle
-                sf["deepest_touch"]   # safety fallback)
+                sf["deepest_touch"]   # safety fallback
+            )
                 
             risk_sl = real_sl * (1 + SL_BUFFER)
             
