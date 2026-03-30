@@ -550,7 +550,7 @@ def update_daily_bias(symbol):
     # -------------------------
     # ONLY RUN AT 01:00
     # -------------------------
-    if not (now.hour == 5 and now.minute > 30):
+    if not (now.hour == 6 and now.minute > 29):
         logger.info(f"{symbol} | C")
         return
 
@@ -653,6 +653,17 @@ def run_daily_fvg_scan(symbol, today):
     c3 = df.iloc[-3]
     c2 = df.iloc[-6]
     c4 = df.iloc[-4]
+    c5 = df.iloc[-1]
+    c6 = df.iloc[-2]
+    c7 = df.iloc[-0]
+
+    logger.info(f"{symbol} c1: {c1}")
+    logger.info(f"{symbol} c2: {c2}")
+    logger.info(f"{symbol} c3: {c3}")
+    logger.info(f"{symbol} c4: {c4}")
+    logger.info(f"{symbol} c5: {c5}")
+    logger.info(f"{symbol} c6: {c6}")
+    logger.info(f"{symbol} c7: {c7}")
 
     sell_fvg_exists = c1["low"] > c3["high"]
     buy_fvg_exists = c1["high"] < c3["low"]
