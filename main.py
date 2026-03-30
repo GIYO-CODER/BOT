@@ -54,6 +54,8 @@ leverage_set = {}
 last_daily_check = {}
 daily_fvg_state = {}
 
+last_scan = True
+
 for p in PAIRS:
     last_daily_check[p["symbol"]] = None
     daily_fvg_state[p["symbol"]] = {
@@ -995,13 +997,15 @@ def handle_symbol(pair):
         bf = state["buy_fvg"]
         
         if bf["deepest_touch"] is None or bf["deepest_touch"] > bf["mid"]:
-            logger.info(f"{symbol} | BUY ignored: price did not reach FVG mid")
+            if not (last_closed["close"] > bf["high"]):
+                logger.info(f"{symbol} | BUY ignored: price did not reach FVG mid")
             return
         
         if bf["deepest_touch"] is not None:
             extreme_not_touched = bf["deepest_touch"] > bf["low"]    # did not touch extreme low
             if not extreme_not_touched:
-                logger.info(f"{symbol} | BUY ignored: touched extreme")
+                if not (last_closed["close"] > bf["high"]):
+                    logger.info(f"{symbol} | BUY ignored: touched extreme")
                 return
 
         if not daily_fvg_state[symbol]["allow_buy"]:
@@ -1140,14 +1144,16 @@ def handle_symbol(pair):
         sf = state["sell_fvg"]
         
         if sf["deepest_touch"] is None or sf["deepest_touch"] < sf["mid"]:
-            logger.info(f"{symbol} | SELL ignored: price did not reach FVG mid")
+            if not (last_closed["close"] < sf["low"]):
+                logger.info(f"{symbol} | SELL ignored: price did not reach FVG mid")
             return
 
 
         if sf["deepest_touch"] is not None:
             extreme_not_touched = sf["deepest_touch"] < sf["high"]
             if not extreme_not_touched:
-                logger.info(f"{symbol} | SELL ignored: touched extreme")
+                if not (last_closed["close"] < sf["low"]):
+                    logger.info(f"{symbol} | SELL ignored: touched extreme")
                 return
 
         if not daily_fvg_state[symbol]["allow_sell"]:
@@ -1361,7 +1367,7 @@ def place_real_trade(symbol, side, entry, sl, tp, leverage, frozen_risk, qty):
         logger.error(f"{symbol} | Order error: {e}")# MAIN LOOP
 # ===========================
 def main():
-    global balance, daily_rf
+    global balance, daily_rf, last_scan
 
     logger.info("LIVE PAPER FVG BOT (simulation) STARTED")
     real_balance = get_real_balance()
@@ -1405,11 +1411,17 @@ def main():
             eligible_pairs = []
             
             for p in PAIRS:
-                sym = p["symbol"]
-                if daily_fvg_state[sym]["allow_buy"] or daily_fvg_state[sym]["allow_sell"]:
-                    logger.info(f"{sym} | Daily bias: buy={daily_fvg_state[sym]['allow_buy']}, sell={daily_fvg_state[sym]['allow_sell']}")
-                    eligible_pairs.append(p)
-            logger.info(f"Scanning {len(eligible_pairs)} eligible symbols out of {len(PAIRS)}")
+                utc_plus_1 = timezone(timedelta(hours=1))
+                now = datetime.now(utc_plus_1)
+                today = now.date()
+                if (now.hour == 1 and now.minute < 5) or last_scan:
+                    sym = p["symbol"]
+                    if daily_fvg_state[sym]["allow_buy"] or daily_fvg_state[sym]["allow_sell"]:
+                        logger.info(f"{sym} | Daily bias: buy={daily_fvg_state[sym]['allow_buy']}, sell={daily_fvg_state[sym]['allow_sell']}")
+                        eligible_pairs.append(p)
+                    last_scan = False
+                    logger.info(f"Scanning {len(eligible_pairs)} eligible symbols out of {len(PAIRS)}")
+                    
             
             for p in eligible_pairs:
                 try:
