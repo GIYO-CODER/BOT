@@ -649,22 +649,16 @@ def run_daily_fvg_scan(symbol, today):
     if len(df) < 4:
         return
 
-    c1 = df.iloc[-5]
-    c3 = df.iloc[-3]
-    c2 = df.iloc[-6]
-    c4 = df.iloc[-4]
-    c5 = df.iloc[-1]
-    c6 = df.iloc[-2]
-    c7 = df.iloc[-0]
+    c1 = df.iloc[-4]
+    c3 = df.iloc[-2]
+    c2 = df.iloc[-5]
+    c4 = df.iloc[-3]
 
     logger.info(f"{symbol} c1: {c1["open"]}")
     logger.info(f"{symbol} c2: {c2["open"]}")
     logger.info(f"{symbol} c3: {c3["open"]}")
     logger.info(f"{symbol} c4: {c4["open"]}")
-    logger.info(f"{symbol} c5: {c5["open"]}")
-    logger.info(f"{symbol} c6: {c6["open"]}")
-    logger.info(f"{symbol} c7: {c7["open"]}")
-
+    
     sell_fvg_exists = c1["low"] > c3["high"]
     buy_fvg_exists = c1["high"] < c3["low"]
 
