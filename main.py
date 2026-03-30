@@ -535,6 +535,8 @@ def update_daily_bias(symbol):
     now = datetime.now(utc_plus_1)
     today = now.date()
 
+    logger.info(f"{symbol} | B")
+    
     # -------------------------
     # FIRST STARTUP RUN
     # -------------------------
@@ -542,25 +544,31 @@ def update_daily_bias(symbol):
         logger.info(f"{symbol} | First startup daily bias scan")
         run_daily_fvg_scan(symbol, today)
         last_daily_check[symbol] = today
+        logger.info(f"{symbol} | A")
         return
 
     # -------------------------
     # ONLY RUN AT 01:00
     # -------------------------
-    if not (now.hour == 1 and now.minute < 5):
+    if not (now.hour == 5 and now.minute > 30):
+        logger.info(f"{symbol} | C")
         return
 
     # -------------------------
     # RUN ONCE PER DAY
     # -------------------------
     if last_daily_check[symbol] == today:
+        logger.info(f"{symbol} | D")
         return
 
+    logger.info(f"{symbol} | E")
+    
     logger.info(f"{symbol} | Running scheduled daily bias scan")
 
     run_daily_fvg_scan(symbol, today)
 
     last_daily_check[symbol] = today
+    logger.info(f"{symbol} | LAST DAILY CHECK {last_daily_check[symbol]}")
     
 def process_signal_queue():
 
@@ -612,12 +620,14 @@ def run_daily_fvg_scan(symbol, today):
     # Expire old permissions
     if daily_fvg_state[symbol]["last_new_buy_fvg"]:
         age_days = (today - daily_fvg_state[symbol]["last_new_buy_fvg"]).days
+        logger.info(f"{symbol} | AGE DAYS {age_days}")
         if age_days >= 2:
             daily_fvg_state[symbol]["allow_buy"] = False
             logger.info(f"{symbol} BUY FVG expired (2 days)")
 
     if daily_fvg_state[symbol]["last_new_sell_fvg"]:
         age_days = (today - daily_fvg_state[symbol]["last_new_sell_fvg"]).days
+        logger.info(f"{symbol} | AGE DAYS {age_days}")
         if age_days >= 2:
             daily_fvg_state[symbol]["allow_sell"] = False
             logger.info(f"{symbol} SELL FVG expired (2 days)")
