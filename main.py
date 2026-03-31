@@ -54,6 +54,8 @@ leverage_set = {}
 last_daily_check = {}
 daily_fvg_state = {}
 
+eligible_pairs = []
+
 last_scan = True
 
 for p in PAIRS:
@@ -1367,7 +1369,7 @@ def place_real_trade(symbol, side, entry, sl, tp, leverage, frozen_risk, qty):
         logger.error(f"{symbol} | Order error: {e}")# MAIN LOOP
 # ===========================
 def main():
-    global balance, daily_rf, last_scan
+    global balance, daily_rf, last_scan, eligible_pairs
 
     logger.info("LIVE PAPER FVG BOT (simulation) STARTED")
     real_balance = get_real_balance()
