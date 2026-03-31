@@ -57,6 +57,7 @@ daily_fvg_state = {}
 eligible_pairs = []
 
 last_scan = True
+last_daily_run = None
 
 for p in PAIRS:
     last_daily_check[p["symbol"]] = None
@@ -1416,13 +1417,24 @@ def main():
                 utc_plus_1 = timezone(timedelta(hours=1))
                 now = datetime.now(utc_plus_1)
                 today = now.date()
-                if (now.hour == 1 and now.minute < 5) or last_scan:
-                    sym = p["symbol"]
-                    if daily_fvg_state[sym]["allow_buy"] or daily_fvg_state[sym]["allow_sell"]:
-                        logger.info(f"{sym} | Daily bias: buy={daily_fvg_state[sym]['allow_buy']}, sell={daily_fvg_state[sym]['allow_sell']}")
-                        eligible_pairs.append(p)
-                    last_scan = False
+                should_run = False
+                
+                if last_scan:
+                    should_run = True
+                elif now.hour == 1 and now.minute == 0:
+                    if last_daily_run != today:
+                        should_run = True
+                        last_daily_run = today
+                if should_run:
+                    eligible_pairs = []
+                    for p in PAIRS:
+                        sym = p["symbol"]
+                        if daily_fvg_state[sym]["allow_buy"] or daily_fvg_state[sym]["allow_sell"]:
+                            logger.info(f"{sym} | Daily bias: buy={daily_fvg_state[sym]['allow_buy']}, sell={daily_fvg_state[sym]['allow_sell']}")
+                            eligible_pairs.append(p)
                     logger.info(f"Scanning {len(eligible_pairs)} eligible symbols out of {len(PAIRS)}")
+                    
+                    last_scan = False
                     
             
             for p in eligible_pairs:
