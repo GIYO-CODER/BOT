@@ -539,8 +539,6 @@ def update_daily_bias(symbol):
     utc_plus_1 = timezone(timedelta(hours=1))
     now = datetime.now(utc_plus_1)
     today = now.date()
-
-    logger.info(f"{symbol} | B")
     
     # -------------------------
     # FIRST STARTUP RUN
@@ -549,21 +547,18 @@ def update_daily_bias(symbol):
         logger.info(f"{symbol} | First startup daily bias scan")
         run_daily_fvg_scan(symbol, today)
         last_daily_check[symbol] = today
-        logger.info(f"{symbol} | A")
         return
 
     # -------------------------
     # ONLY RUN AT 01:00
     # -------------------------
-    if not (now.hour == 6 and now.minute > 29):
-        logger.info(f"{symbol} | C")
+    if not (now.hour == 1 and now.minute < 5):
         return
 
     # -------------------------
     # RUN ONCE PER DAY
     # -------------------------
     if last_daily_check[symbol] == today:
-        logger.info(f"{symbol} | D")
         return
 
     logger.info(f"{symbol} | E")
@@ -1421,7 +1416,7 @@ def main():
                 
                 if last_scan:
                     should_run = True
-                elif now.hour == 1 and now.minute == 0:
+                elif now.hour == 1 and now.minute < 5:
                     if last_daily_run != today:
                         should_run = True
                         last_daily_run = today
