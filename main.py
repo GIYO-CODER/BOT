@@ -73,8 +73,8 @@ for p in PAIRS:
         
     }
 
-MAX_SYMBOLS = 50          # number of pairs to scan
-MAX_ACTIVE_TRADES = 10    # maximum open positions
+MAX_SYMBOLS = 100          # number of pairs to scan
+MAX_ACTIVE_TRADES = 5    # maximum open positions
 DEFAULT_LEVERAGE = 50
 
 last_symbol_refresh_week = None
