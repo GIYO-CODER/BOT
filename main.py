@@ -1406,7 +1406,6 @@ def main():
             lock_weekly_rf_if_needed()
 
             # Process each pair independently
-            eligible_pairs = []
             
             for p in PAIRS:
                 utc_plus_1 = timezone(timedelta(hours=1))
@@ -1431,7 +1430,6 @@ def main():
                     
                     last_scan = False
                     
-            
             for p in eligible_pairs:
                 try:
                     handle_symbol(p)
