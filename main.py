@@ -880,12 +880,12 @@ def handle_symbol(pair):
     
     bull_displacement = (
         prev1["close"] > prev1["open"] and
-        body_ratio > 0.6 and
+        body_ratio > 0.1 and
         prev1["close"] > prev2["high"])
     
     bear_displacement = (
         prev1["close"] < prev1["open"] and
-        body_ratio > 0.6 and
+        body_ratio > 0.1 and
         prev1["close"] < prev2["low"])
     
     bull_fvg = prev1["low"] > prev2["high"] and bull_displacement
