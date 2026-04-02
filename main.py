@@ -847,7 +847,7 @@ def handle_symbol(pair):
             high = daily_fvg_state[symbol]["buy_fvg_high"]
             if high is not None and current_price <= high:
                 daily_fvg_state[symbol]["allow_buy"] = False
-                logger.info(f"{symbol} BUY FVG invalidated (price reached upper boundary)")
+                logger.info(f"{symbol} BUY FVG invalidated (price reached daily fvg upper boundary)")
             
     if daily_fvg_state[symbol]["allow_sell"]:
         current_price = last_closed["high"]
@@ -855,7 +855,7 @@ def handle_symbol(pair):
             low = daily_fvg_state[symbol]["sell_fvg_low"]
             if low is not None and current_price >= low:
                 daily_fvg_state[symbol]["allow_sell"] = False
-                logger.info(f"{symbol} SELL FVG invalidated (price reached lower boundary)")
+                logger.info(f"{symbol} SELL FVG invalidated (price reached daily fvg lower boundary)")
 
     
     prev1 = closed_candles[-1]
