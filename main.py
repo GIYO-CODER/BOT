@@ -1010,7 +1010,7 @@ def handle_symbol(pair):
             logger.info(f"{symbol} | Daily bias does not allow BUY, skipping")
             return
             
-        if last_closed["high"] > prev1["high"]:
+        if daily_fvg_state[symbol]["allow_buy"]:
             entry = last_closed["close"]
             
             deep = bf["deepest_touch"]
@@ -1158,7 +1158,7 @@ def handle_symbol(pair):
             logger.info(f"{symbol} | Daily bias does not allow SELL, skipping")
             return
             
-        if last_closed["low"] < prev1["low"]:
+        if daily_fvg_state[symbol]["allow_sell"]:
             entry = last_closed["close"]
             
             deep = sf["deepest_touch"]
