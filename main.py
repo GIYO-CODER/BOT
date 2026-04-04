@@ -29,7 +29,7 @@ from decimal import Decimal, ROUND_DOWN
 PAIRS = []
 symbol_specs = {}
 
-INTERVAL = "30"
+INTERVAL = "5"
 CANDLE_LIMIT = 6
 LOG_LEVEL = logging.INFO
 
@@ -912,7 +912,7 @@ def handle_symbol(pair):
         if not position_exists(symbol, "Buy"):
             logger.info(f"{symbol} | BUY FVG registered as active watcher (no active buy trade).")
         fvg_size_pct = abs(new_high - new_low) / new_high
-        if fvg_size_pct < 0.003:
+        if fvg_size_pct < 0.001:
             logger.info(f"{symbol} | FVG too small, skipping")
             return
 
@@ -937,7 +937,7 @@ def handle_symbol(pair):
         if not position_exists(symbol, "Sell"):
             logger.info(f"{symbol} | SELL FVG registered as active watcher (no active sell trade).")
         fvg_size_pct = abs(new_high - new_low) / new_high
-        if fvg_size_pct < 0.003:
+        if fvg_size_pct < 0.001:
             logger.info(f"{symbol} | FVG too small, skipping")
             return
 
@@ -1021,7 +1021,6 @@ def handle_symbol(pair):
                 
             real_sl = min(
                 bf["low"],            # FVG low
-                prev2["low"],         # structure candle
                 bf["deepest_touch"]   # safety fallback
             )
             
@@ -1169,7 +1168,6 @@ def handle_symbol(pair):
                 
             real_sl = max(
                 sf["low"],            # FVG low
-                prev2["low"],         # structure candle
                 sf["deepest_touch"]   # safety fallback
             )
                 
