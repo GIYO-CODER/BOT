@@ -912,7 +912,7 @@ def handle_symbol(pair):
         if not position_exists(symbol, "Buy"):
             logger.info(f"{symbol} | BUY FVG registered as active watcher (no active buy trade).")
         fvg_size_pct = abs(new_high - new_low) / new_high
-        if fvg_size_pct < 0.001:
+        if fvg_size_pct < 0.0001:
             logger.info(f"{symbol} | FVG too small, skipping")
             return
 
@@ -937,7 +937,7 @@ def handle_symbol(pair):
         if not position_exists(symbol, "Sell"):
             logger.info(f"{symbol} | SELL FVG registered as active watcher (no active sell trade).")
         fvg_size_pct = abs(new_high - new_low) / new_high
-        if fvg_size_pct < 0.001:
+        if fvg_size_pct < 0.0001:
             logger.info(f"{symbol} | FVG too small, skipping")
             return
 
