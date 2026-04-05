@@ -229,6 +229,10 @@ def fetch_daily_klines(symbol, retries=3, base_delay=1):
     logger.error(f"{symbol} | Failed to fetch daily klines after {retries} attempts")
     return None
 
+def sl_too_small(entry, sl):
+    sl_pct = abs(entry - sl) / entry
+    return sl_pct < 0.001  # 0.1%
+    
 def get_symbol_specs(symbol):
     if symbol in symbol_specs:
         return symbol_specs[symbol]
@@ -569,6 +573,47 @@ def update_daily_bias(symbol):
 
     last_daily_check[symbol] = today
     logger.info(f"{symbol} | LAST DAILY CHECK {last_daily_check[symbol]}")
+
+def fetch_30m_candles(symbol, limit=50):
+    resp = session.get_kline(
+        category="linear",
+        symbol=symbol,
+        interval="30",
+        limit=limit
+    )
+    time.sleep(0.2)
+
+    raw = resp["result"]["list"]
+    candles = list(reversed(raw))
+
+    return [{
+        "high": float(c[2]),
+        "low": float(c[3])
+    } for c in candles]
+
+def find_tp_sell_30m(symbol, entry, sl):
+    candles_30m = fetch_30m_candles(symbol)
+
+    risk = abs(entry - sl)
+    normal_tp = entry - (risk * 2)
+
+    for c in candles_30m:
+        if c["low"] <= normal_tp:
+            return c["low"]
+
+    return normal_tp  # fallback
+
+def find_tp_buy_30m(symbol, entry, sl):
+    candles_30m = fetch_30m_candles(symbol)
+
+    risk = abs(entry - sl)
+    normal_tp = entry + (risk * 2)
+
+    for c in candles_30m:
+        if c["high"] >= normal_tp:
+            return c["high"]
+
+    return normal_tp  # fallback
     
 def process_signal_queue():
 
@@ -1049,12 +1094,10 @@ def handle_symbol(pair):
             sl = real_sl  # this is what will be sent to exchange
             
             state["buy_fvg"] = None
-            sl_pct = (entry - risk_sl) / entry
-            if sl_pct >= MIN_SL_PCT:
-                rr_tp = entry + (entry - risk_sl) * RR
-                liq_tp = find_tp_buy(candles, entry)
-                
-                tp = min(rr_tp, liq_tp)
+            if sl_too_small(entry, risk_sl):
+                logger.info(f"{symbol} | BUY skipped: SL distance < 0.1%")
+                return
+                tp = find_tp_buy_30m(symbol, entry, sl)
 
                 if abs(tp - entry) < 2 * abs(entry - sl):
                     logger.info(f"{symbol} | BUY skipped: RR too low after liquidity TP")
@@ -1196,12 +1239,10 @@ def handle_symbol(pair):
             sl = real_sl
 
             state["sell_fvg"] = None
-            sl_pct = (risk_sl - entry) / entry
-            if sl_pct >= MIN_SL_PCT:
-                rr_tp = entry - (risk_sl - entry) * RR
-                liq_tp = find_tp_sell(candles, entry)
-                
-                tp = max(rr_tp, liq_tp)
+            if sl_too_small(entry, risk_sl):
+                logger.info(f"{symbol} | SELL skipped: SL distance < 0.1%")
+                return
+                tp = find_tp_sell_30m(symbol, entry, sl)
                 if abs(tp - entry) < 2 * abs(entry - sl):
                     logger.info(f"{symbol} | SELL skipped: RR too low after liquidity TP")
                     return  # skip weak trade
