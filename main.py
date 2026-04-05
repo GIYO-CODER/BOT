@@ -1097,87 +1097,84 @@ def handle_symbol(pair):
             if sl_too_small(entry, risk_sl):
                 logger.info(f"{symbol} | BUY skipped: SL distance < 0.1%")
                 return
-                tp = find_tp_buy_30m(symbol, entry, sl)
+            tp = find_tp_buy_30m(symbol, entry, sl)
 
-                if abs(tp - entry) < 2 * abs(entry - sl):
-                    logger.info(f"{symbol} | BUY skipped: RR too low after liquidity TP")
-                    return  # skip weak trade
-                
-                logger.info(f"{symbol} | BUY CONFIRMED | entry={entry} sl={sl} tp={tp}")
-                if USE_REAL_TRADING and position_exists(symbol, "Sell"):
-                    try:
-                        logger.info(f"{symbol} | Closing existing SELL before opening BUY")
-                        session.place_order(
-                            category=CATEGORY,
-                            symbol=symbol,
-                            side="Buy",
-                            orderType="Market",
-                            qty="0",
-                            reduceOnly=True,
-                            positionIdx=2
-                        )
-                        time.sleep(0.2)  # small delay for safety
-                    except Exception as e:
-                        logger.error(f"{symbol} | Failed closing SELL: {e}")
-                if USE_REAL_TRADING:
-                    available_balance = get_real_balance()  # use your balance function
-                    risk_amount = weekly_rf  # your frozen risk
-                    raw_qty = risk_amount / abs(entry - risk_sl)
-                    
-                    specs = get_symbol_specs(symbol)
-                    step = specs["qty_step"]
-                    
-                    qty = round_qty(symbol, raw_qty)
-                    qty = fit_qty_to_margin(     
-                        symbol,     
-                        entry,   
-                        leverage, 
-                        qty) 
-                    if qty is None:  
-                        logger.info(f"{symbol} | Not enough margin for trade")  
-                        return
-
-                    if not trade_value_ok(entry, qty):
-                        logger.info(f"{symbol} | Trade value < $5. Skipping")
-                        return
-                    
-                    lp = calculate_liquidation_price(
-                        entry=entry,
-                        qty=qty,
+            if abs(tp - entry) < 2 * abs(entry - sl):
+                logger.info(f"{symbol} | BUY skipped: RR too low after liquidity TP")
+                return  # skip weak trade
+            logger.info(f"{symbol} | BUY CONFIRMED | entry={entry} sl={sl} tp={tp}")
+            if USE_REAL_TRADING and position_exists(symbol, "Sell"):
+                try:
+                    logger.info(f"{symbol} | Closing existing SELL before opening BUY")
+                    session.place_order(
+                        category=CATEGORY,
+                        symbol=symbol,
                         side="Buy",
-                        leverage=leverage,
-                        available_balance=available_balance)
+                        orderType="Market",
+                        qty="0",
+                        reduceOnly=True,
+                        positionIdx=2
+                    )
+                    time.sleep(0.2)  # small delay for safety
+                except Exception as e:
+                    logger.error(f"{symbol} | Failed closing SELL: {e}")
+            if USE_REAL_TRADING:
+                available_balance = get_real_balance()  # use your balance function
+                risk_amount = weekly_rf  # your frozen risk
+                raw_qty = risk_amount / abs(entry - risk_sl)
                     
-                    distance_to_lp_pct = abs((sl - lp) / entry)
-                    if distance_to_lp_pct < 0.003:  # 0.1%
-                        logger.info(f"{symbol} | Skipping BUY - SL too close to liquidation ({distance_to_lp_pct*100:.3f}%)")
-                        return
-                    score = calculate_signal_score(entry, bf["low"], bf["high"])
-                    
-                    signal_queue.append({
-                        "symbol": symbol,
-                        "side": "BUY",
-                        "entry": entry,
-                        "sl": sl,
-                        "tp": tp,
-                        "score": score,
-                        "qty": qty,
-                        "leverage": leverage})
-                    logger.info(f"{symbol} BUY signal queued | score={score:.4f}")
+                specs = get_symbol_specs(symbol)
+                step = specs["qty_step"]
+                
+                qty = round_qty(symbol, raw_qty)
+                qty = fit_qty_to_margin(     
+                    symbol,     
+                    entry,   
+                    leverage, 
+                    qty) 
+                if qty is None:  
+                    logger.info(f"{symbol} | Not enough margin for trade")                          
+                    return
 
-                else:
-                    signal_queue.append({
-                        "symbol": symbol,
-                        "side": "BUY",
-                        "entry": entry,
-                        "sl": sl,
-                        "tp": tp,
-                        "score": score,
-                         "qty": qty,
-                        "leverage": leverage})
-                    logger.info(f"{symbol} BUY signal queued | score={score:.4f}")
+                if not trade_value_ok(entry, qty):
+                    logger.info(f"{symbol} | Trade value < $5. Skipping")
+                    return
+                    
+                lp = calculate_liquidation_price(
+                    entry=entry,
+                    qty=qty,
+                    side="Buy",
+                    leverage=leverage,
+                    available_balance=available_balance)
+                distance_to_lp_pct = abs((sl - lp) / entry)
+                if distance_to_lp_pct < 0.003:  # 0.1%
+                    logger.info(f"{symbol} | Skipping BUY - SL too close to liquidation ({distance_to_lp_pct*100:.3f}%)")
+                    return
+                score = calculate_signal_score(entry, bf["low"], bf["high"])
+                    
+                signal_queue.append({
+                    "symbol": symbol,
+                    "side": "BUY",
+                    "entry": entry,
+                    "sl": sl,
+                    "tp": tp,
+                    "score": score,
+                    "qty": qty,
+                    "leverage": leverage})
+                logger.info(f"{symbol} BUY signal queued | score={score:.4f}")
             else:
-                logger.info(f"{symbol} | BUY confirmation ignored: SL too tight")
+                signal_queue.append({
+                    "symbol": symbol,
+                    "side": "BUY",
+                    "entry": entry,
+                    "sl": sl,
+                    "tp": tp,
+                    "score": score,
+                     "qty": qty,
+                    "leverage": leverage})
+                logger.info(f"{symbol} BUY signal queued | score={score:.4f}")
+        else:
+            logger.info(f"{symbol} | BUY confirmation ignored: SL too tight")
 
     # SELL confirmation
     if state["sell_fvg"] and state["sell_fvg"]["tapped"] and not position_exists(symbol, "Sell") and last_closed["time"] != state["sell_fvg_candle_time"]:
@@ -1242,86 +1239,84 @@ def handle_symbol(pair):
             if sl_too_small(entry, risk_sl):
                 logger.info(f"{symbol} | SELL skipped: SL distance < 0.1%")
                 return
-                tp = find_tp_sell_30m(symbol, entry, sl)
-                if abs(tp - entry) < 2 * abs(entry - sl):
-                    logger.info(f"{symbol} | SELL skipped: RR too low after liquidity TP")
-                    return  # skip weak trade
+            tp = find_tp_sell_30m(symbol, entry, sl)
+            if abs(tp - entry) < 2 * abs(entry - sl):
+                logger.info(f"{symbol} | SELL skipped: RR too low after liquidity TP")
+                return  # skip weak trade
             
-                logger.info(f"{symbol} | SELL CONFIRMED | entry={entry} sl={sl} tp={tp}")
-                if USE_REAL_TRADING and position_exists(symbol, "Buy"):
-                    try:
-                        logger.info(f"{symbol} | Closing existing BUY before opening SELL")
-                        session.place_order(
-                            category=CATEGORY,
-                            symbol=symbol,
-                            side="Sell",
-                            orderType="Market",
-                            qty="0",
-                            reduceOnly=True,
-                            positionIdx=1)
-                        time.sleep(0.2)
-                    except Exception as e:
-                        logger.error(f"{symbol} | Failed closing BUY: {e}")
-                if USE_REAL_TRADING:
-                    available_balance = get_real_balance()  # use your balance function
-                    risk_amount = weekly_rf  # your frozen risk
-                    raw_qty = risk_amount / abs(entry - risk_sl)
-                    
-                    specs = get_symbol_specs(symbol)
-                    step = specs["qty_step"]
-                    
-                    qty = round_qty(symbol, raw_qty) 
-                    qty = fit_qty_to_margin(   
-                        symbol,  
-                        entry,   
-                        leverage,
-                        qty) 
-                    if qty is None:   
-                        logger.info(f"{symbol} | Not enough margin for trade")  
-                        return
-
-                    if not trade_value_ok(entry, qty):
-                        logger.info(f"{symbol} | Trade value < $5. Skipping")
-                        return
-                        
-                    lp = calculate_liquidation_price(
-                        entry=entry,
-                        qty=qty,
+            logger.info(f"{symbol} | SELL CONFIRMED | entry={entry} sl={sl} tp={tp}")
+            if USE_REAL_TRADING and position_exists(symbol, "Buy"):
+                try:
+                    logger.info(f"{symbol} | Closing existing BUY before opening SELL")
+                    session.place_order(
+                        category=CATEGORY,
+                        symbol=symbol,
                         side="Sell",
-                        leverage=leverage,
-                        available_balance=available_balance)
+                        orderType="Market",
+                        qty="0",
+                        reduceOnly=True,
+                        positionIdx=1)
+                    time.sleep(0.2)
+                except Exception as e:
+                    logger.error(f"{symbol} | Failed closing BUY: {e}")
+            if USE_REAL_TRADING:
+                available_balance = get_real_balance()  # use your balance function
+                risk_amount = weekly_rf  # your frozen risk
+                raw_qty = risk_amount / abs(entry - risk_sl)
                     
-                    distance_to_lp_pct = abs((lp - sl) / entry)
-                    
-                    if distance_to_lp_pct < 0.003:
-                        logger.info(f"{symbol} | Skipping SELL - SL too close to liquidation ({distance_to_lp_pct*100:.3f}%)")
-                        return
-                    score = calculate_signal_score(entry, sf["low"], sf["high"])
-                    
-                    signal_queue.append({
-                        "symbol": symbol,
-                        "side": "SELL",
-                        "entry": entry,
-                        "sl": sl,
-                        "tp": tp,
-                        "score": score,
-                        "qty": qty,
-                        "leverage": leverage})
-                    logger.info(f"{symbol} SELL signal queued | score={score:.4f}")
+                specs = get_symbol_specs(symbol)
+                step = specs["qty_step"]
+                qty = round_qty(symbol, raw_qty) 
+                qty = fit_qty_to_margin(   
+                    symbol,  
+                    entry,   
+                    leverage,
+                    qty) 
+                if qty is None:   
+                    logger.info(f"{symbol} | Not enough margin for trade")  
+                    return
 
-                else:
-                    signal_queue.append({
-                        "symbol": symbol,
-                        "side": "SELL",
-                        "entry": entry,
-                        "sl": sl,
-                        "tp": tp,
-                        "score": score,
-                        "qty": qty,
-                        "leverage": leverage})
-                    logger.info(f"{symbol} SELL signal queued | score={score:.4f}")
+                if not trade_value_ok(entry, qty):
+                    logger.info(f"{symbol} | Trade value < $5. Skipping")
+                    return
+                    
+                lp = calculate_liquidation_price(
+                    entry=entry,
+                    qty=qty,
+                    side="Sell",
+                    leverage=leverage,
+                    available_balance=available_balance)
+                
+                distance_to_lp_pct = abs((lp - sl) / entry)
+                    
+                if distance_to_lp_pct < 0.003:
+                    logger.info(f"{symbol} | Skipping SELL - SL too close to liquidation ({distance_to_lp_pct*100:.3f}%)")
+                    return
+                score = calculate_signal_score(entry, sf["low"], sf["high"])                    
+                signal_queue.append({
+                    "symbol": symbol,
+                    "side": "SELL",
+                    "entry": entry,
+                    "sl": sl,
+                    "tp": tp,
+                    "score": score,
+                    "qty": qty,
+                    "leverage": leverage})
+                logger.info(f"{symbol} SELL signal queued | score={score:.4f}")
+
             else:
-                logger.info(f"{symbol} | SELL confirmation ignored: SL too tight")
+                signal_queue.append({
+                    "symbol": symbol,
+                    "side": "SELL",
+                    "entry": entry,
+                    "sl": sl,
+                    "tp": tp,
+                    "score": score,
+                    "qty": qty,
+                    "leverage": leverage})
+                logger.info(f"{symbol} SELL signal queued | score={score:.4f}")
+        else:
+            logger.info(f"{symbol} | SELL confirmation ignored: SL too tight")
     
 def place_real_trade(symbol, side, entry, sl, tp, leverage, frozen_risk, qty):
 
