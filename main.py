@@ -231,7 +231,7 @@ def fetch_daily_klines(symbol, retries=3, base_delay=1):
 
 def sl_too_small(entry, sl):
     sl_pct = abs(entry - sl) / entry
-    return sl_pct < 0.001  # 0.1%
+    return sl_pct > 0.001  # 0.1%
     
 def get_symbol_specs(symbol):
     if symbol in symbol_specs:
