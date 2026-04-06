@@ -231,7 +231,66 @@ def fetch_daily_klines(symbol, retries=3, base_delay=1):
 
 def sl_too_small(entry, sl):
     sl_pct = abs(entry - sl) / entry
-    return sl_pct > 0.002  # 0.1%
+    return sl_pct < 0.001  # 0.1%
+
+def find_structure_sl(candles, entry, side, lookback=12):
+    relevant = candles[-lookback:]
+    best_sl = None
+
+    for i in range(2, len(relevant) - 2):
+        c = relevant[i]
+
+        if side == "BUY":
+            is_swing_low = (
+                c["low"] < relevant[i-1]["low"] and
+                c["low"] < relevant[i-2]["low"] and
+                c["low"] < relevant[i+1]["low"] and
+                c["low"] < relevant[i+2]["low"]
+            )
+
+            if is_swing_low and c["low"] < entry:
+                if best_sl is None or c["low"] > best_sl:
+                    best_sl = c["low"]
+
+        if side == "SELL":
+            is_swing_high = (
+                c["high"] > relevant[i-1]["high"] and
+                c["high"] > relevant[i-2]["high"] and
+                c["high"] > relevant[i+1]["high"] and
+                c["high"] > relevant[i+2]["high"]
+            )
+
+            if is_swing_high and c["high"] > entry:
+                if best_sl is None or c["high"] < best_sl:
+                    best_sl = c["high"]
+
+    return best_sl
+
+
+def find_consolidation_sl(candles, entry, side, lookback=10, tolerance=0.002):
+    relevant = candles[-lookback:]
+    best_sl = None
+
+    for i in range(len(relevant) - 3):
+        window = relevant[i:i+4]
+
+        highs = [c["high"] for c in window]
+        lows = [c["low"] for c in window]
+
+        zone_high = max(highs)
+        zone_low = min(lows)
+
+        if (zone_high - zone_low) / zone_high < tolerance:
+
+            if side == "BUY" and zone_low < entry:
+                if best_sl is None or zone_low > best_sl:
+                    best_sl = zone_low
+
+            if side == "SELL" and zone_high > entry:
+                if best_sl is None or zone_high < best_sl:
+                    best_sl = zone_high
+
+    return best_sl
     
 def get_symbol_specs(symbol):
     if symbol in symbol_specs:
@@ -1063,11 +1122,22 @@ def handle_symbol(pair):
             if deep is None:
                 logger.info(f"{symbol} | BUY ignored: no deepest touch recorded")
                 return
+            swing_sl = find_structure_sl(closed_candles, entry, "BUY")
+            zone_sl  = find_consolidation_sl(closed_candles, entry, "BUY")
+            
+            candidates = [x for x in [swing_sl, zone_sl] if x is not None]
+            
+            if len(candidates) > 0:
+                structure_sl = max(candidates)  # closest below entry
+            else:
+                structure_sl = None
                 
-            real_sl = min(
-                bf["low"],            # FVG low
-                bf["deepest_touch"]   # safety fallback
-            )
+            real_sl = structure_sl if structure_sl else min(
+                bf["low"],
+                prev2["low"],
+                bf["deepest_touch"])
+            
+            logger.info(f"{symbol} | STRUCTURE SL (BUY): {real_sl}")
             
             risk_sl = real_sl * (1 - SL_BUFFER)
             
@@ -1094,7 +1164,7 @@ def handle_symbol(pair):
             sl = real_sl  # this is what will be sent to exchange
             
             state["buy_fvg"] = None
-            if sl_too_small(entry, risk_sl):
+            if sl_too_small(entry, real_sl):
                 logger.info(f"{symbol} | BUY skipped: SL distance < 0.1%")
                 return
             tp = find_tp_buy_30m(symbol, entry, sl)
@@ -1206,10 +1276,22 @@ def handle_symbol(pair):
                 logger.info(f"{symbol} | SELL ignored: no deepest touch recorded")
                 return
                 
-            real_sl = max(
-                sf["low"],            # FVG low
-                sf["deepest_touch"]   # safety fallback
-            )
+            swing_sl = find_structure_sl(closed_candles, entry, "SELL")
+            zone_sl  = find_consolidation_sl(closed_candles, entry, "SELL")
+            
+            candidates = [x for x in [swing_sl, zone_sl] if x is not None]
+            
+            if len(candidates) > 0:
+                structure_sl = min(candidates)  # closest above entry
+            else:
+                structure_sl = None
+                
+            real_sl = structure_sl if structure_sl else max(
+                sf["high"],
+                prev2["high"],
+                sf["deepest_touch"])
+            
+            logger.info(f"{symbol} | STRUCTURE SL (SELL): {real_sl}")
                 
             risk_sl = real_sl * (1 + SL_BUFFER)
             
