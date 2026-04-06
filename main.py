@@ -1269,6 +1269,7 @@ def handle_symbol(pair):
             
         if last_closed["close"] < sf["low"]:
             entry = last_closed["close"]
+
             
             deep = sf["deepest_touch"]
             
