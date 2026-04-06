@@ -237,10 +237,13 @@ def find_structure_sl(candles, entry, side, lookback=12):
     relevant = candles[-lookback:]
     best_sl = None
 
+    logger.info(1)
     for i in range(2, len(relevant) - 2):
+        logger.info(2)
         c = relevant[i]
 
         if side == "BUY":
+            logger.info(3)
             is_swing_low = (
                 c["low"] < relevant[i-1]["low"] and
                 c["low"] < relevant[i-2]["low"] and
@@ -249,10 +252,13 @@ def find_structure_sl(candles, entry, side, lookback=12):
             )
 
             if is_swing_low and c["low"] < entry:
+                logger.info(4)
                 if best_sl is None or c["low"] > best_sl:
+                    logger.info(5)
                     best_sl = c["low"]
 
         if side == "SELL":
+            logger.info(6)
             is_swing_high = (
                 c["high"] > relevant[i-1]["high"] and
                 c["high"] > relevant[i-2]["high"] and
@@ -261,9 +267,11 @@ def find_structure_sl(candles, entry, side, lookback=12):
             )
 
             if is_swing_high and c["high"] > entry:
+                logger.info(7)
                 if best_sl is None or c["high"] < best_sl:
+                    logger.info(8)
                     best_sl = c["high"]
-
+    logger.info(best_sl)
     return best_sl
 
 
@@ -271,7 +279,10 @@ def find_consolidation_sl(candles, entry, side, lookback=10, tolerance=0.002):
     relevant = candles[-lookback:]
     best_sl = None
 
+    logger.info(9)
+    
     for i in range(len(relevant) - 3):
+        logger.info(10)
         window = relevant[i:i+4]
 
         highs = [c["high"] for c in window]
@@ -281,15 +292,20 @@ def find_consolidation_sl(candles, entry, side, lookback=10, tolerance=0.002):
         zone_low = min(lows)
 
         if (zone_high - zone_low) / zone_high < tolerance:
+            logger.info(11)
 
             if side == "BUY" and zone_low < entry:
+                logger.info(12)
                 if best_sl is None or zone_low > best_sl:
+                    logger.info(13)
                     best_sl = zone_low
 
             if side == "SELL" and zone_high > entry:
+                logger.info(14)
                 if best_sl is None or zone_high < best_sl:
+                    logger.info(15)
                     best_sl = zone_high
-
+    logger.info(best_sl)
     return best_sl
     
 def get_symbol_specs(symbol):
