@@ -237,10 +237,12 @@ def find_structure_sl(candles, entry, side, lookback=12):
     relevant = candles[-lookback:]
     best_sl = None
 
+    logge.info(relevant)
     logger.info(1)
     for i in range(2, len(relevant) - 2):
         logger.info(2)
         c = relevant[i]
+        logger.info(f'C (o: {c["open"]}, h: {c["high"]}, l: {c["low"]}, c: {c["close"]})')
 
         if side == "BUY":
             logger.info(3)
@@ -250,6 +252,7 @@ def find_structure_sl(candles, entry, side, lookback=12):
                 c["low"] < relevant[i+1]["low"] and
                 c["low"] < relevant[i+2]["low"]
             )
+            logger.info(f"is_swing_low:{is_swing_low}")
 
             if is_swing_low and c["low"] < entry:
                 logger.info(4)
@@ -265,8 +268,9 @@ def find_structure_sl(candles, entry, side, lookback=12):
                 c["high"] > relevant[i+1]["high"] and
                 c["high"] > relevant[i+2]["high"]
             )
-
+            logger.info(f"is_swing_high:{is_swing_high}")
             if is_swing_high and c["high"] > entry:
+                
                 logger.info(7)
                 if best_sl is None or c["high"] < best_sl:
                     logger.info(8)
@@ -287,9 +291,12 @@ def find_consolidation_sl(candles, entry, side, lookback=10, tolerance=0.002):
 
         highs = [c["high"] for c in window]
         lows = [c["low"] for c in window]
+        
 
         zone_high = max(highs)
         zone_low = min(lows)
+
+        logger.info(highs,lows,zone_high,zone_low)
 
         if (zone_high - zone_low) / zone_high < tolerance:
             logger.info(11)
