@@ -234,6 +234,7 @@ def sl_too_small(entry, sl):
     return sl_pct < 0.001  # 0.1%
 
 def find_structure_sl(candles, entry, side, lookback=12):
+    candles = fetch_candles(symbol, interval=INTERVAL, limit=14) 
     relevant = candles[-lookback:]
     best_sl = None
 
@@ -281,6 +282,7 @@ def find_structure_sl(candles, entry, side, lookback=12):
 
 
 def find_consolidation_sl(candles, entry, side, lookback=10, tolerance=0.002):
+    candles = fetch_candles(symbol, interval=INTERVAL, limit=12) 
     relevant = candles[-lookback:]
     best_sl = None
 
