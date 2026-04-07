@@ -238,6 +238,7 @@ def find_structure_sl(candles, entry, side, lookback=12):
     best_sl = None
 
     logger.info(relevant)
+    
     logger.info(1)
     for i in range(2, len(relevant) - 2):
         logger.info(2)
