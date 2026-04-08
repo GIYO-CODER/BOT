@@ -1303,8 +1303,8 @@ def handle_symbol(pair):
                 logger.info(f"{symbol} | SELL ignored: no deepest touch recorded")
                 return
                 
-            swing_sl = find_structure_sl(closed_candles, entry, "SELL")
-            zone_sl  = find_consolidation_sl(closed_candles, entry, "SELL")
+            swing_sl = find_structure_sl(symbol, closed_candles, entry, "SELL")
+            zone_sl  = find_consolidation_sl(symbol, closed_candles, entry, "SELL")
             
             candidates = [x for x in [swing_sl, zone_sl] if x is not None]
             
