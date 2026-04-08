@@ -30,7 +30,7 @@ PAIRS = []
 symbol_specs = {}
 
 INTERVAL = "5"
-CANDLE_LIMIT = 6
+CANDLE_LIMIT = 5
 LOG_LEVEL = logging.INFO
 
 START_BALANCE = 100.0
@@ -233,90 +233,79 @@ def sl_too_small(entry, sl):
     sl_pct = abs(entry - sl) / entry
     return sl_pct < 0.001  # 0.1%
 
-def find_structure_sl(symbol, candles, entry, side, lookback=12):
-    candles = fetch_candles(symbol, interval=INTERVAL, limit=14) 
-    relevant = candles[-lookback:]
-    best_sl = None
+def find_structure_sl(symbol, entry, side, lookback=20):
+    candles = fetch_candles(symbol, interval=INTERVAL, limit=25)
 
-    logger.info(relevant)
-    
-    logger.info(1)
-    for i in range(2, len(relevant) - 2):
-        logger.info(2)
-        c = relevant[i]
-        logger.info(f'C (o: {c["open"]}, h: {c["high"]}, l: {c["low"]}, c: {c["close"]})')
+    levels = []
+
+    for i in range(2, len(candles) - 2):
+        c = candles[i]
 
         if side == "BUY":
-            logger.info(3)
             is_swing_low = (
-                c["low"] < relevant[i-1]["low"] and
-                c["low"] < relevant[i-2]["low"] and
-                c["low"] < relevant[i+1]["low"] and
-                c["low"] < relevant[i+2]["low"]
+                c["low"] < candles[i-1]["low"] and
+                c["low"] < candles[i-2]["low"] and
+                c["low"] < candles[i+1]["low"] and
+                c["low"] < candles[i+2]["low"]
             )
-            logger.info(f"is_swing_low:{is_swing_low}")
 
             if is_swing_low and c["low"] < entry:
-                logger.info(4)
-                if best_sl is None or c["low"] > best_sl:
-                    logger.info(5)
-                    best_sl = c["low"]
+                levels.append(c["low"])
 
-        if side == "SELL":
-            logger.info(6)
+        elif side == "SELL":
             is_swing_high = (
-                c["high"] > relevant[i-1]["high"] and
-                c["high"] > relevant[i-2]["high"] and
-                c["high"] > relevant[i+1]["high"] and
-                c["high"] > relevant[i+2]["high"]
+                c["high"] > candles[i-1]["high"] and
+                c["high"] > candles[i-2]["high"] and
+                c["high"] > candles[i+1]["high"] and
+                c["high"] > candles[i+2]["high"]
             )
-            logger.info(f"is_swing_high:{is_swing_high}")
+
             if is_swing_high and c["high"] > entry:
-                
-                logger.info(7)
-                if best_sl is None or c["high"] < best_sl:
-                    logger.info(8)
-                    best_sl = c["high"]
-    logger.info(best_sl)
-    return best_sl
+                levels.append(c["high"])
+
+    if not levels:
+        return None, None
+
+    # sort closest first
+    if side == "BUY":
+        levels = sorted(levels, reverse=True)  # closest below entry
+    else:
+        levels = sorted(levels)  # closest above entry
+
+    return levels[0], levels[1] if len(levels) > 1 else None
 
 
-def find_consolidation_sl(symbol, candles, entry, side, lookback=10, tolerance=0.002):
-    candles = fetch_candles(symbol, interval=INTERVAL, limit=12) 
-    relevant = candles[-lookback:]
-    best_sl = None
+def find_consolidation_sl(symbol, entry, side, lookback=20, tolerance=0.002):
+    candles = fetch_candles(symbol, interval=INTERVAL, limit=25)
 
-    logger.info(9)
-    
-    for i in range(len(relevant) - 3):
-        logger.info(10)
-        window = relevant[i:i+4]
+    levels = []
+
+    for i in range(len(candles) - 3):
+        window = candles[i:i+4]
 
         highs = [c["high"] for c in window]
         lows = [c["low"] for c in window]
-        
 
         zone_high = max(highs)
         zone_low = min(lows)
 
-        logger.info(highs,lows,zone_high,zone_low)
-
         if (zone_high - zone_low) / zone_high < tolerance:
-            logger.info(11)
 
             if side == "BUY" and zone_low < entry:
-                logger.info(12)
-                if best_sl is None or zone_low > best_sl:
-                    logger.info(13)
-                    best_sl = zone_low
+                levels.append(zone_low)
 
-            if side == "SELL" and zone_high > entry:
-                logger.info(14)
-                if best_sl is None or zone_high < best_sl:
-                    logger.info(15)
-                    best_sl = zone_high
-    logger.info(best_sl)
-    return best_sl
+            elif side == "SELL" and zone_high > entry:
+                levels.append(zone_high)
+
+    if not levels:
+        return None, None
+
+    if side == "BUY":
+        levels = sorted(levels, reverse=True)
+    else:
+        levels = sorted(levels)
+
+    return levels[0], levels[1] if len(levels) > 1 else None
     
 def get_symbol_specs(symbol):
     if symbol in symbol_specs:
@@ -699,7 +688,36 @@ def find_tp_buy_30m(symbol, entry, sl):
             return c["high"]
 
     return normal_tp  # fallback
-    
+
+def find_tp_structure_30m(symbol, entry, side):
+    candles = fetch_30m_candles(symbol)
+
+    levels = []
+
+    for i in range(2, len(candles) - 2):
+        c = candles[i]
+
+        if side == "BUY":
+            is_high = (
+                c["high"] > candles[i-1]["high"] and
+                c["high"] > candles[i+1]["high"]
+            )
+            if is_high and c["high"] > entry:
+                levels.append(c["high"])
+
+        else:
+            is_low = (
+                c["low"] < candles[i-1]["low"] and
+                c["low"] < candles[i+1]["low"]
+            )
+            if is_low and c["low"] < entry:
+                levels.append(c["low"])
+
+    if not levels:
+        return None
+
+    return min(levels) if side == "BUY" else max(levels)
+
 def process_signal_queue():
 
     global signal_queue
@@ -1148,15 +1166,23 @@ def handle_symbol(pair):
             if deep is None:
                 logger.info(f"{symbol} | BUY ignored: no deepest touch recorded")
                 return
-            swing_sl = find_structure_sl(symbol,closed_candles, entry, "BUY")
-            zone_sl  = find_consolidation_sl(symbol,closed_candles, entry, "BUY")
+            s1, s2 = find_structure_sl(symbol, entry, "BUY")
+            z1, z2 = find_consolidation_sl(symbol, entry, "BUY")
             
-            candidates = [x for x in [swing_sl, zone_sl] if x is not None]
+            levels = [x for x in [s1, s2, z1, z2] if x is not None]
+            levels = sorted(levels, reverse=True)  # closest below entry
             
-            if len(candidates) > 0:
-                structure_sl = max(candidates)  # closest below entry
-            else:
-                structure_sl = None
+            chosen_sl = None
+            
+            for lvl in levels:
+                if lvl > bf["low"]:   # must be ABOVE FVG low
+                    chosen_sl = lvl
+                    break
+            if chosen_sl is None:
+                chosen_sl = bf["low"]
+                
+            real_sl = chosen_sl
+
                 
             real_sl = structure_sl if structure_sl else min(
                 bf["low"],
@@ -1193,7 +1219,10 @@ def handle_symbol(pair):
             if sl_too_small(entry, real_sl):
                 logger.info(f"{symbol} | BUY skipped: SL distance < 0.1%")
                 return
-            tp = find_tp_buy_30m(symbol, entry, sl)
+            tp = find_tp_structure_30m(symbol, entry, "BUY")
+            if tp is None:
+                tp = entry + (abs(entry - sl) * 2)
+
 
             if abs(tp - entry) < 2 * abs(entry - sl):
                 logger.info(f"{symbol} | BUY skipped: RR too low after liquidity TP")
@@ -1303,15 +1332,23 @@ def handle_symbol(pair):
                 logger.info(f"{symbol} | SELL ignored: no deepest touch recorded")
                 return
                 
-            swing_sl = find_structure_sl(symbol, closed_candles, entry, "SELL")
-            zone_sl  = find_consolidation_sl(symbol, closed_candles, entry, "SELL")
+            s1, s2 = find_structure_sl(symbol, entry, "SELL")
+            z1, z2 = find_consolidation_sl(symbol, entry, "SELL")
             
-            candidates = [x for x in [swing_sl, zone_sl] if x is not None]
+            levels = [x for x in [s1, s2, z1, z2] if x is not None]
+            levels = sorted(levels)  # closest above entry
             
-            if len(candidates) > 0:
-                structure_sl = min(candidates)  # closest above entry
-            else:
-                structure_sl = None
+            chosen_sl = None
+            
+            for lvl in levels:
+                if lvl < sf["high"]:   # must be BELOW FVG high
+                    chosen_sl = lvl
+                    break
+            if chosen_sl is None:
+                chosen_sl = sf["high"]
+                
+            real_sl = chosen_sl
+
                 
             real_sl = structure_sl if structure_sl else max(
                 sf["high"],
@@ -1348,7 +1385,10 @@ def handle_symbol(pair):
             if sl_too_small(entry, risk_sl):
                 logger.info(f"{symbol} | SELL skipped: SL distance < 0.1%")
                 return
-            tp = find_tp_sell_30m(symbol, entry, sl)
+            tp = find_tp_structure_30m(symbol, entry, "SELL")
+            if tp is None:
+                tp = entry + (abs(entry - sl) * 2)
+
             if abs(tp - entry) < 2 * abs(entry - sl):
                 logger.info(f"{symbol} | SELL skipped: RR too low after liquidity TP")
                 return  # skip weak trade
