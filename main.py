@@ -233,7 +233,7 @@ def sl_too_small(entry, sl):
     sl_pct = abs(entry - sl) / entry
     return sl_pct < 0.001  # 0.1%
 
-def find_structure_sl(candles, entry, side, lookback=12):
+def find_structure_sl(symbol, candles, entry, side, lookback=12):
     candles = fetch_candles(symbol, interval=INTERVAL, limit=14) 
     relevant = candles[-lookback:]
     best_sl = None
@@ -281,7 +281,7 @@ def find_structure_sl(candles, entry, side, lookback=12):
     return best_sl
 
 
-def find_consolidation_sl(candles, entry, side, lookback=10, tolerance=0.002):
+def find_consolidation_sl(symbol, candles, entry, side, lookback=10, tolerance=0.002):
     candles = fetch_candles(symbol, interval=INTERVAL, limit=12) 
     relevant = candles[-lookback:]
     best_sl = None
@@ -1148,8 +1148,8 @@ def handle_symbol(pair):
             if deep is None:
                 logger.info(f"{symbol} | BUY ignored: no deepest touch recorded")
                 return
-            swing_sl = find_structure_sl(closed_candles, entry, "BUY")
-            zone_sl  = find_consolidation_sl(closed_candles, entry, "BUY")
+            swing_sl = find_structure_sl(symbol,closed_candles, entry, "BUY")
+            zone_sl  = find_consolidation_sl(symbol,closed_candles, entry, "BUY")
             
             candidates = [x for x in [swing_sl, zone_sl] if x is not None]
             
