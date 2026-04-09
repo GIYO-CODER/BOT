@@ -1184,7 +1184,7 @@ def handle_symbol(pair):
             real_sl = chosen_sl
 
                 
-            real_sl = structure_sl if structure_sl else min(
+            real_sl = chosen_sl if chosen_sl else min(
                 bf["low"],
                 prev2["low"],
                 bf["deepest_touch"])
@@ -1350,7 +1350,7 @@ def handle_symbol(pair):
             real_sl = chosen_sl
 
                 
-            real_sl = structure_sl if structure_sl else max(
+            real_sl = chosen_sl if chosen_sl else max(
                 sf["high"],
                 prev2["high"],
                 sf["deepest_touch"])
