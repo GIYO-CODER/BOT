@@ -242,6 +242,7 @@ def find_structure_sl(symbol, entry, side, lookback=20):
         c = candles[i]
 
         if side == "BUY":
+            logger.info(f"candle close: {c['open']}")
             is_swing_low = (
                 c["low"] < candles[i-1]["low"] and
                 c["low"] < candles[i-2]["low"] and
@@ -251,8 +252,10 @@ def find_structure_sl(symbol, entry, side, lookback=20):
 
             if is_swing_low and c["low"] < entry:
                 levels.append(c["low"])
+                logger.info(f"swing low: {c['low']}")
 
         elif side == "SELL":
+            logger.info(f"candle close: {c['open']}")
             is_swing_high = (
                 c["high"] > candles[i-1]["high"] and
                 c["high"] > candles[i-2]["high"] and
@@ -261,7 +264,9 @@ def find_structure_sl(symbol, entry, side, lookback=20):
             )
 
             if is_swing_high and c["high"] > entry:
+                logger.info(f"swing high: {c['high']}")
                 levels.append(c["high"])
+        logger.info(f"levels list: {levels}")
 
     if not levels:
         return None, None
@@ -271,6 +276,9 @@ def find_structure_sl(symbol, entry, side, lookback=20):
         levels = sorted(levels, reverse=True)  # closest below entry
     else:
         levels = sorted(levels)  # closest above entry
+    if levels:
+        logger.info(f"levels fs: {levels}")
+        logger.info(f"first and second levels: {levels[0],levels[1]}")
 
     return levels[0], levels[1] if len(levels) > 1 else None
 
@@ -286,9 +294,15 @@ def find_consolidation_sl(symbol, entry, side, lookback=20, tolerance=0.002):
         highs = [c["high"] for c in window]
         lows = [c["low"] for c in window]
 
+        if highs:
+            logger.info(f"highs: {highs}")
+        if lows:
+            logger.info(f"lows: {lows}")
+
         zone_high = max(highs)
         zone_low = min(lows)
 
+        
         if (zone_high - zone_low) / zone_high < tolerance:
 
             if side == "BUY" and zone_low < entry:
@@ -304,7 +318,10 @@ def find_consolidation_sl(symbol, entry, side, lookback=20, tolerance=0.002):
         levels = sorted(levels, reverse=True)
     else:
         levels = sorted(levels)
-
+        
+    if levels:
+        logger.info(f"levels fc: {levels}")
+        logger.info(f"first and second levels: {levels[0],levels[1]}")
     return levels[0], levels[1] if len(levels) > 1 else None
     
 def get_symbol_specs(symbol):
@@ -715,6 +732,8 @@ def find_tp_structure_30m(symbol, entry, side):
 
     if not levels:
         return None
+    logger.info(f"levels ftp: {levels}")
+    logger.info(f"levels min: {min(levels)}, levels max: {max(levels)}")
 
     return min(levels) if side == "BUY" else max(levels)
 
@@ -1170,7 +1189,9 @@ def handle_symbol(pair):
             z1, z2 = find_consolidation_sl(symbol, entry, "BUY")
             
             levels = [x for x in [s1, s2, z1, z2] if x is not None]
+            logger.info(f"levels fcn: {levels}")
             levels = sorted(levels, reverse=True)  # closest below entry
+            logger.info(f"levels fcr: {levels}")
             
             chosen_sl = None
             
@@ -1182,6 +1203,7 @@ def handle_symbol(pair):
                 chosen_sl = bf["low"]
                 
             real_sl = chosen_sl
+            logger.info(f"chosen sl: {chosen_sl}")
 
                 
             real_sl = chosen_sl if chosen_sl else min(
@@ -1336,7 +1358,9 @@ def handle_symbol(pair):
             z1, z2 = find_consolidation_sl(symbol, entry, "SELL")
             
             levels = [x for x in [s1, s2, z1, z2] if x is not None]
+            logger.info(f"levels fcns: {levels}")
             levels = sorted(levels)  # closest above entry
+            logger.info(f"levels fcrs: {levels}")
             
             chosen_sl = None
             
@@ -1346,6 +1370,8 @@ def handle_symbol(pair):
                     break
             if chosen_sl is None:
                 chosen_sl = sf["high"]
+                
+            logger.info(f"chosen sl: {chosen_sl}")
                 
             real_sl = chosen_sl
 
