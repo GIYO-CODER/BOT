@@ -233,8 +233,8 @@ def sl_too_small(entry, sl):
     sl_pct = abs(entry - sl) / entry
     return sl_pct < 0.001  # 0.1%
 
-def find_structure_sl(symbol, entry, side, lookback=20):
-    candles = fetch_candles(symbol, interval=INTERVAL, limit=25)
+def find_structure_sl(symbol, entry, side, sl, lookback=20):
+    candles = fetch_candles(symbol, interval=INTERVAL, limit=30)
 
     levels = []
 
@@ -250,7 +250,7 @@ def find_structure_sl(symbol, entry, side, lookback=20):
                 c["low"] < candles[i+2]["low"]
             )
 
-            if is_swing_low and c["low"] < entry:
+            if is_swing_low and c["low"] < sl:
                 levels.append(c["low"])
                 logger.info(f"swing low: {c['low']}")
 
@@ -263,7 +263,7 @@ def find_structure_sl(symbol, entry, side, lookback=20):
                 c["high"] > candles[i+2]["high"]
             )
 
-            if is_swing_high and c["high"] > entry:
+            if is_swing_high and c["high"] > sl:
                 logger.info(f"swing high: {c['high']}")
                 levels.append(c["high"])
         logger.info(f"levels list: {levels}")
@@ -274,7 +274,7 @@ def find_structure_sl(symbol, entry, side, lookback=20):
     if levels:
         logger.info(f"levels fs: {levels}")
 
-    return levels if len(levels) > 1 else None
+    return levels[-1] if len(levels) > 1 else None
 
 
 def find_consolidation_sl(symbol, entry, side, lookback=20, tolerance=0.002):
@@ -310,7 +310,7 @@ def find_consolidation_sl(symbol, entry, side, lookback=20, tolerance=0.002):
         
     if levels:
         logger.info(f"levels fc: {levels}")
-    return levels if len(levels) > 1 else None
+    return None
     
 def get_symbol_specs(symbol):
     if symbol in symbol_specs:
@@ -724,7 +724,7 @@ def find_tp_structure_30m(symbol, entry, side, tp):
     logger.info(f"levels ftp: {levels}")
     logger.info(f"levels min: {min(levels)}, levels max: {max(levels)}")
 
-    return min(levels) if side == "SELL" else max(levels)
+    return levels[-1]
 
 def process_signal_queue():
 
@@ -1174,29 +1174,30 @@ def handle_symbol(pair):
             if deep is None:
                 logger.info(f"{symbol} | BUY ignored: no deepest touch recorded")
                 return
-            s1 = find_structure_sl(symbol, entry, "BUY")
-            z1 = find_consolidation_sl(symbol, entry, "BUY")
-            levels_list = []
+            sl = bf["low"]
+            s1 = find_structure_sl(symbol, entry, "BUY", sl)
+
+             
+            # z1 = find_consolidation_sl(symbol, entry, "BUY")
+            # levels_list = []
             
-            if s1 and z1:
-                for s, z in zip(s1, z1):
-                    levels_list.append((s, z))
+            # if s1:
+            #     for s in s1
+            #         levels_list.append(s)
                 
-            levels = [x for x in levels_list if x is not None]
+            # levels = [x for x in levels_list if x is not None]
             
-            logger.info(f"levels fcn: {levels_list}")
-            logger.info(f"levels fcr: {levels_list}")
+            # logger.info(f"levels fcn: {levels_list}")
+            # logger.info(f"levels fcr: {levels_list}")
             
-            chosen_sl = None
+            # chosen_sl = None
             
-            for lvl in reversed(levels_list):
-                if lvl < bf["low"]:   # must be ABOVE FVG low
-                    chosen_sl = lvl
-                    break
-            if chosen_sl is None:
-                chosen_sl = bf["low"]
-                
-            real_sl = chosen_sl
+            # for lvl in reversed(levels_list):
+            #     if lvl < bf["low"]:   # must be ABOVE FVG low
+            #         chosen_sl = lvl
+            #         break
+         
+            chosen_sl = s1
             logger.info(f"chosen sl: {chosen_sl}")
 
                 
