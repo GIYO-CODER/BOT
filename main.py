@@ -273,7 +273,6 @@ def find_structure_sl(symbol, entry, side, lookback=20):
         
     if levels:
         logger.info(f"levels fs: {levels}")
-        logger.info(f"first and second levels: {levels[0],levels[1]}")
 
     return levels if len(levels) > 1 else None
 
@@ -311,7 +310,6 @@ def find_consolidation_sl(symbol, entry, side, lookback=20, tolerance=0.002):
         
     if levels:
         logger.info(f"levels fc: {levels}")
-        logger.info(f"first and second levels: {levels[0],levels[1]}")
     return levels if len(levels) > 1 else None
     
 def get_symbol_specs(symbol):
@@ -1179,8 +1177,10 @@ def handle_symbol(pair):
             s1 = find_structure_sl(symbol, entry, "BUY")
             z1 = find_consolidation_sl(symbol, entry, "BUY")
             levels_list = []
-            for s, z in zip(s1, z1):
-                levels_list.append((s, z))
+            
+            if s1 and z1:
+                for s, z in zip(s1, z1):
+                    levels_list.append((s, z))
                 
             levels = [x for x in levels_list if x is not None]
             
@@ -1350,9 +1350,12 @@ def handle_symbol(pair):
                 
             s1 = find_structure_sl(symbol, entry, "SELL")
             z1 = find_consolidation_sl(symbol, entry, "SELL")
+            
             levels_list = []
-            for s, z in zip(s1, z1):
-                levels_list.append((s, z))
+            
+            if s1 and z1:
+                for s, z in zip(s1, z1):
+                    levels_list.append((s, z))
                 
             levels = [x for x in levels_list if x is not None]
             
