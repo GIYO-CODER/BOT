@@ -711,14 +711,14 @@ def find_tp_structure_30m(symbol, entry, side, tp):
                 levels.append(c["high"])
 
         else:
-            if c["low"] < tp:
-                is_low = (
-                    c["low"] < candles[i-1]["low"] and
-                    c["low"] < candles[i+1]["low"]
-                )
-                if is_low and c["low"] < entry:
-                    levels.append(c["low"])
-
+            if side == "SELL" and c["low"] < tp:
+                if c["low"] < tp:
+                    is_low = (
+                        c["low"] < candles[i-1]["low"] and
+                        c["low"] < candles[i+1]["low"])
+                    if is_low and c["low"] < entry:
+                        levels.append(c["low"])
+                        
     if not levels:
         return None
     logger.info(f"levels ftp: {levels}")
@@ -1184,12 +1184,12 @@ def handle_symbol(pair):
                 
             levels = [x for x in levels_list if x is not None]
             
-            logger.info(f"levels fcn: {levels}")
-            logger.info(f"levels fcr: {levels}")
+            logger.info(f"levels fcn: {levels_list}")
+            logger.info(f"levels fcr: {levels_list}")
             
             chosen_sl = None
             
-            for lvl in reversed(levels):
+            for lvl in reversed(levels_list):
                 if lvl < bf["low"]:   # must be ABOVE FVG low
                     chosen_sl = lvl
                     break
@@ -1359,12 +1359,11 @@ def handle_symbol(pair):
                 
             levels = [x for x in levels_list if x is not None]
             
-            logger.info(f"levels fcB: {levels}")
-            logger.info(f"levels fcC: {levels}")
+            logger.info(f"levels fcB: {levels_list}")
             
             chosen_sl = None
             
-            for lvl in reversed(levels):
+            for lvl in reversed(levels_list):
                 if lvl > sf["high"]:   # must be ABOVE FVG low
                     chosen_sl = lvl
                     break
