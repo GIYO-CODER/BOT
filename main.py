@@ -6,7 +6,7 @@ LIVE PAPER FVG BOT (simulation only)
 Requirements:
     pip install pybit pandas
 Environment:
-    Set BYBIT API_KEY and BYBIT_API_SECRET in environment if you want to use Bybit (read-only for kline).
+    Set BYBIT API_KEY and BYBIT_API_SECRET in environment if you wantF to use Bybit (read-only for kline).
 Notes:
     - This is a paper/simulation bot: it does NOT place real orders.
     - RF (risk factor in $) is locked once per UTC day and used unchanged for all trades that day.
@@ -1409,7 +1409,7 @@ def handle_symbol(pair):
             if sl_too_small(entry, risk_sl):
                 logger.info(f"{symbol} | SELL skipped: SL distance < 0.1%")
                 return
-            normal_tp = entry + (abs(entry - sl) * 2)
+            normal_tp = entry - (abs(entry - sl) * 2)
             tp = find_tp_structure_30m(symbol, entry, "SELL", normal_tp)
             if tp is None:
                 tp = entry + (abs(entry - sl) * 2)
