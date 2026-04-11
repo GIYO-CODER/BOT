@@ -74,7 +74,7 @@ for p in PAIRS:
     }
 
 MAX_SYMBOLS = 100          # number of pairs to scan
-MAX_ACTIVE_TRADES = 5    # maximum open positions
+MAX_ACTIVE_TRADES = 6    # maximum open positions
 DEFAULT_LEVERAGE = 50
 
 last_symbol_refresh_week = None
@@ -274,7 +274,7 @@ def find_structure_sl(symbol, entry, side, sl, lookback=20):
     if levels:
         logger.info(f"levels fs: {levels}")
 
-    return levels[-1] if len(levels) > 1 else None
+    return levels[-1]
 
 
 def find_consolidation_sl(symbol, entry, side, lookback=20, tolerance=0.002):
