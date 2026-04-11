@@ -34,7 +34,7 @@ CANDLE_LIMIT = 5
 LOG_LEVEL = logging.INFO
 
 START_BALANCE = 100.0
-DAILY_RISK_PCT = 0.1
+DAILY_RISK_PCT = 0.05
 RR = 2
 MIN_SL_PCT = 0.001
 TP_BUFFER = 0.001
@@ -47,7 +47,7 @@ TESTNET = False
 USE_REAL_TRADING = True
 ACCOUNT_TYPE = "UNIFIED"
 CATEGORY = "linear"
-RF_PERCENT = 0.1
+RF_PERCENT = 0.05
 
 leverage_set = {}
 
@@ -653,7 +653,7 @@ def update_daily_bias(symbol):
     last_daily_check[symbol] = today
     logger.info(f"{symbol} | LAST DAILY CHECK {last_daily_check[symbol]}")
 
-def fetch_30m_candles(symbol, limit=50):
+def fetch_30m_candles(symbol, limit=999):
     resp = session.get_kline(
         category="linear",
         symbol=symbol,
@@ -1175,7 +1175,7 @@ def handle_symbol(pair):
                 logger.info(f"{symbol} | BUY ignored: no deepest touch recorded")
                 return
             sl = bf["low"]
-            s1 = find_structure_sl(symbol, entry, "BUY", sl)
+            chosen_sl = find_structure_sl(symbol, entry, "BUY", sl)
 
              
             # z1 = find_consolidation_sl(symbol, entry, "BUY")
@@ -1196,8 +1196,7 @@ def handle_symbol(pair):
             #     if lvl < bf["low"]:   # must be ABOVE FVG low
             #         chosen_sl = lvl
             #         break
-         
-            chosen_sl = s1
+       
             logger.info(f"chosen sl: {chosen_sl}")
 
                 
@@ -1348,32 +1347,31 @@ def handle_symbol(pair):
             if deep is None:
                 logger.info(f"{symbol} | SELL ignored: no deepest touch recorded")
                 return
+            sl = sf["high"] 
+            chosen_sl = find_structure_sl(symbol, entry, "SELL", sl)      
+            
+            # levels_list = []
+            
+            # if s1 and z1:
+            #     for s, z in zip(s1, z1):
+            #         levels_list.append((s, z))
                 
-            s1 = find_structure_sl(symbol, entry, "SELL")
-            z1 = find_consolidation_sl(symbol, entry, "SELL")
+            # levels = [x for x in levels_list if x is not None]
             
-            levels_list = []
+            # logger.info(f"levels fcB: {levels_list}")
             
-            if s1 and z1:
-                for s, z in zip(s1, z1):
-                    levels_list.append((s, z))
-                
-            levels = [x for x in levels_list if x is not None]
+            # chosen_sl = None
             
-            logger.info(f"levels fcB: {levels_list}")
-            
-            chosen_sl = None
-            
-            for lvl in reversed(levels_list):
-                if lvl > sf["high"]:   # must be ABOVE FVG low
-                    chosen_sl = lvl
-                    break
-            if chosen_sl is None:
-                chosen_sl = sf["high"]
+            # for lvl in reversed(levels_list):
+            #     if lvl > sf["high"]:   # must be ABOVE FVG low
+            #         chosen_sl = lvl
+            #         break
+            # if chosen_sl is None:
+            #     chosen_sl = sf["high"]
                 
             logger.info(f"chosen sl: {chosen_sl}")
                 
-            real_sl = chosen_sl
+            # real_sl = chosen_sl
 
                 
             real_sl = chosen_sl if chosen_sl else max(
