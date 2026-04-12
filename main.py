@@ -547,6 +547,97 @@ def calculate_signal_score(entry, fvg_low, fvg_high):
 
     return score
 
+def get_open_positions():
+    return [p for p in account_cache["positions"] if float(p["size"]) > 0]
+
+def find_latest_swing_30m(symbol, side):
+    candles = fetch_30m_candles(symbol, limit=50)
+
+    swing = None
+
+    for i in range(2, len(candles) - 2):
+        c = candles[i]
+
+        if side == "BUY":
+            is_swing_low = (
+                c["low"] < candles[i-1]["low"] and
+                c["low"] < candles[i-2]["low"] and
+                c["low"] < candles[i+1]["low"] and
+                c["low"] < candles[i+2]["low"]
+            )
+            if is_swing_low:
+                swing = c["low"]
+
+        elif side == "SELL":
+            is_swing_high = (
+                c["high"] > candles[i-1]["high"] and
+                c["high"] > candles[i-2]["high"] and
+                c["high"] > candles[i+1]["high"] and
+                c["high"] > candles[i+2]["high"]
+            )
+            if is_swing_high:
+                swing = c["high"]
+    return swing
+
+def update_trailing_sl():
+    positions = get_open_positions()
+
+    for pos in positions:
+        symbol = pos["symbol"]
+        size = float(pos["size"])
+
+        if size == 0:
+            continue
+
+        side = pos["side"]  # "Buy" or "Sell"
+        entry = float(pos["avgPrice"])
+        current_sl = float(pos.get("stopLoss", 0) or 0)
+
+        # Normalize side
+        side_clean = "BUY" if side == "Buy" else "SELL"
+
+        new_swing = find_latest_swing_30m(symbol, side_clean)
+
+        if new_swing is None:
+            continue
+
+        # =========================
+        # BUY LOGIC
+        # =========================
+        if side_clean == "BUY":
+            # only move SL UP
+            if new_swing > current_sl and new_swing < entry:
+                new_sl = new_swing
+
+            else:
+                continue
+
+        # =========================
+        # SELL LOGIC
+        # =========================
+        else:
+            # only move SL DOWN
+            if (current_sl == 0 or new_swing < current_sl) and new_swing > entry:
+                new_sl = new_swing
+            else:
+                continue
+        if abs(new_sl - current_sl) / entry < 0.001:
+            continue
+        # =========================
+        # APPLY UPDATE
+        # =========================
+        try:
+            session.set_trading_stop(
+                category="linear",
+                symbol=symbol,
+                stopLoss=str(new_sl),
+                positionIdx=1 if side_clean == "BUY" else 2
+            )
+
+            logger.info(f"{symbol} | SL UPDATED → {new_sl}")
+
+        except Exception as e:
+            logger.error(f"{symbol} | SL update failed: {e}")
 
 def position_exists(symbol, side):
 
@@ -1606,7 +1697,7 @@ def main():
             time.sleep(wait + 0.8)  # small offset to ensure candle is closed on exchange
 
             refresh_account_cache()
-
+            update_trailing_sl()
             for p in PAIRS: 
                 update_daily_bias(p["symbol"])
             
