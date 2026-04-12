@@ -1412,7 +1412,7 @@ def handle_symbol(pair):
             normal_tp = entry - (abs(entry - sl) * 2)
             tp = find_tp_structure_30m(symbol, entry, "SELL", normal_tp)
             if tp is None:
-                tp = entry + (abs(entry - sl) * 2)
+                tp = normal_tp
 
             if abs(tp - entry) < 2 * abs(entry - sl):
                 logger.info(f"{symbol} | SELL skipped: RR too low after liquidity TP")
